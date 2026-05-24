@@ -75,7 +75,6 @@
         function App() {
           const [view, setView] = useState("dashboard");
           
-          // LocalStorage Entegrasyonu (Verilerin kalıcı olması için)
           const [orders, setOrders] = useState(() => {
             const savedOrders = localStorage.getItem("orders");
             return savedOrders ? JSON.parse(savedOrders) : initialOrders;
@@ -457,40 +456,4 @@
           logoTitle: { fontWeight: 800, fontSize: 16, color: "#f1f5f9", fontFamily: "'DM Serif Display', Georgia, serif" },
           logoSub: { fontSize: 11, color: "#475569", marginTop: 1 },
           nav: { padding: "20px 12px", display: "flex", flexDirection: "column", gap: 4 },
-          navBtn: { display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", cursor: "pointer", fontSize: 14, fontWeight: 500, textAlign: "left", transition: "all .15s" },
-          navBtnActive: { background: "#1e293b", color: "#f1f5f9" },
-          sidebarFooter: { marginTop: "auto", padding: "16px 20px", borderTop: "1px solid #1e293b" },
-          main: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
-          header: { background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-          headerTitle: { fontWeight: 800, fontSize: 22, color: "#1e293b", fontFamily: "'DM Serif Display', Georgia, serif" },
-          headerSub: { fontSize: 13, color: "#94a3b8", marginTop: 2 },
-          content: { flex: 1, overflowY: "auto", padding: 28 },
-          statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginBottom: 24 },
-          statCard: { background: "#fff", borderRadius: 14, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 1px 3px #0001" },
-          card: { background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 3px #0001", marginBottom: 20 },
-          cardTitle: { fontWeight: 700, fontSize: 16, color: "#1e293b" },
-          statusCard: { padding: "14px 20px", borderRadius: 12, textAlign: "center", minWidth: 80 },
-          table: { width: "100%", borderCollapse: "collapse", marginTop: 16 },
-          th: { textAlign: "left", padding: "10px 12px", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "2px solid #f1f5f9" },
-          tr: { borderBottom: "1px solid #f8fafc", transition: "background .1s" },
-          td: { padding: "12px 12px", fontSize: 14, color: "#374151" },
-          customerCard: { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 4px #0001" },
-          customerStat: { flex: 1, background: "#f8fafc", borderRadius: 10, padding: "12px 14px", textAlign: "center" },
-          overlay: { position: "fixed", inset: 0, background: "#0009", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
-          modal: { background: "#fff", borderRadius: 20, padding: 32, width: 440, maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px #0003" },
-          closeBtn: { background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14, color: "#64748b" },
-          detailRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" },
-          detailLabel: { fontSize: 13, color: "#94a3b8", fontWeight: 500 },
-          detailValue: { fontSize: 15, fontWeight: 600, color: "#1e293b" },
-          input: { padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, minWidth: 240, outline: "none", background: "#f8fafc" },
-          inputFull: { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none", background: "#f8fafc", boxSizing: "border-box" },
-          select: { padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, background: "#f8fafc", outline: "none", cursor: "pointer" },
-          btnPrimary: { padding: "10px 20px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
-          btnSecondary: { padding: "10px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, cursor: "pointer" },
-        };
-
-        const root = tragedies = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+          navBtn: { display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", cursor: "pointer", fontSize: 14, fontWeight: 5
