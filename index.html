@@ -15,6 +15,7 @@
 
     <style>
         body { margin: 0; padding: 0; background: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -88,36 +89,125 @@
             try { localStorage.setItem("customers", JSON.stringify(customers)); } catch(e) {}
           }, [customers]);
 
+          // Filtreler
           const [filterStatus, setFilterStatus] = useState("all");
           const [search, setSearch] = useState("");
+          const [customerSearch, setCustomerSearch] = useState("");
+
+          // Modallar
           const [showAddOrder, setShowAddOrder] = useState(false);
           const [showAddCustomer, setShowAddCustomer] = useState(false);
           const [selectedOrder, setSelectedOrder] = useState(null);
+          const [selectedCustomer, setSelectedCustomer] = useState(null);
           
+          // Düzenleme Modları
+          const [isEditingOrder, setIsEditingOrder] = useState(false);
+          const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+
+          // Form Hata Yönetimi
+          const [formError, setFormError] = useState("");
+
+          // Form State'leri
           const [newOrder, setNewOrder] = useState({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0] });
           const [newCustomer, setNewCustomer] = useState({ name: "", email: "", phone: "" });
 
+          // İstatistik Hesaplamaları
           const totalRevenue = orders.filter(o => o.status === "teslim_edildi").reduce((s, o) => s + Number(o.amount || 0), 0);
           const activeOrders = orders.filter(o => !["teslim_edildi","iptal"].includes(o.status)).length;
 
-          const filteredOrders = orders
-            .filter(o => filterStatus === "all" || o.status === filterStatus)
-            .filter(o => o.customerName?.toLowerCase().includes(search.toLowerCase()) || o.product?.toLowerCase().includes(search.toLowerCase()));
+          // Gelişmiş Sipariş Filtreleme Mantığı
+          const filteredOrders = orders.filter(o => {
+            const matchesStatus = filterStatus === "all" || o.status === filterStatus;
+            const matchesSearch = o.customerName?.toLowerCase().includes(search.toLowerCase()) || 
+                                  o.product?.toLowerCase().includes(search.toLowerCase()) ||
+                                  String(o.id).includes(search);
+            return matchesStatus && matchesSearch;
+          });
 
-          function addOrder() {
-            if (!newOrder.customerName || !newOrder.product || !newOrder.amount) return;
+          // Müşteri Filtreleme Mantığı
+          const filteredCustomers = customers.filter(c => 
+            c.name?.toLowerCase().includes(customerSearch.toLowerCase()) || 
+            c.phone?.includes(customerSearch)
+          );
+
+          // Sipariş Ekleme & Doğrulama
+          function handleAddOrder() {
+            if (!newOrder.customerName.trim() || !newOrder.product.trim() || !String(newOrder.amount).trim()) {
+              setFormError("Lütfen tüm zorunlu alanları doldurun.");
+              return;
+            }
+            if (isNaN(newOrder.amount) || Number(newOrder.amount) <= 0) {
+              setFormError("Lütfen geçerli bir tutar girin.");
+              return;
+            }
+
             const id = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1001;
             setOrders([...orders, { ...newOrder, id, amount: Number(newOrder.amount) }]);
             setNewOrder({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0] });
             setShowAddOrder(false);
+            setFormError("");
           }
 
-          function addCustomer() {
-            if (!newCustomer.name || !newCustomer.phone) return;
+          // Sipariş Düzenleme & Kaydetme
+          function handleSaveEditOrder() {
+            if (!selectedOrder.customerName.trim() || !selectedOrder.product.trim() || !String(selectedOrder.amount).trim()) {
+              setFormError("Alanlar boş bırakılamaz.");
+              return;
+            }
+            if (isNaN(selectedOrder.amount) || Number(selectedOrder.amount) <= 0) {
+              setFormError("Geçerli bir tutar girin.");
+              return;
+            }
+
+            setOrders(orders.map(o => o.id === selectedOrder.id ? { ...selectedOrder, amount: Number(selectedOrder.amount) } : o));
+            setIsEditingOrder(false);
+            setSelectedOrder(null);
+            setFormError("");
+          }
+
+          // Sipariş Silme
+          function handleDeleteOrder(orderId) {
+            if(confirm("Bu siparişi silmek istediğinize emin misiniz?")) {
+              setOrders(orders.filter(o => o.id !== orderId));
+              setSelectedOrder(null);
+              setIsEditingOrder(false);
+            }
+          }
+
+          // Müşteri Ekleme & Doğrulama
+          function handleAddCustomer() {
+            if (!newCustomer.name.trim() || !newCustomer.phone.trim()) {
+              setFormError("Ad Soyad ve Telefon alanları zorunludur.");
+              return;
+            }
+
             const id = customers.length > 0 ? Math.max(...customers.map(c => c.id)) + 1 : 1;
             setCustomers([...customers, { ...newCustomer, id }]);
             setNewCustomer({ name: "", email: "", phone: "" });
             setShowAddCustomer(false);
+            setFormError("");
+          }
+
+          // Müşteri Düzenleme & Kaydetme
+          function handleSaveEditCustomer() {
+            if (!selectedCustomer.name.trim() || !selectedCustomer.phone.trim()) {
+              setFormError("Ad Soyad ve Telefon boş bırakılamaz.");
+              return;
+            }
+
+            setCustomers(customers.map(c => c.id === selectedCustomer.id ? selectedCustomer : c));
+            setIsEditingCustomer(false);
+            setSelectedCustomer(null);
+            setFormError("");
+          }
+
+          // Müşteri Silme
+          function handleDeleteCustomer(customerId) {
+            if(confirm("Bu müşteriyi silmek istediğinize emin misiniz? Müşteriye ait siparişler silinmez.")) {
+              setCustomers(customers.filter(c => c.id !== customerId));
+              setSelectedCustomer(null);
+              setIsEditingCustomer(false);
+            }
           }
 
           function updateStatus(orderId, status) {
@@ -136,8 +226,8 @@
                   <span style={S.headerTitle}>OrderFlow</span>
                 </div>
                 <div>
-                  {view === "orders" && <button style={S.btnPrimarySmall} onClick={() => setShowAddOrder(true)}>+ Ekle</button>}
-                  {view === "customers" && <button style={S.btnPrimarySmall} onClick={() => setShowAddCustomer(true)}>+ Ekle</button>}
+                  {view === "orders" && <button style={S.btnPrimarySmall} onClick={() => { setFormError(""); setShowAddOrder(true); }}>+ Ekle</button>}
+                  {view === "customers" && <button style={S.btnPrimarySmall} onClick={() => { setFormError(""); setShowAddCustomer(true); }}>+ Ekle</button>}
                 </div>
               </header>
 
@@ -149,7 +239,6 @@
                   <div style={S.content}>
                     <div style={S.viewTitle}>Genel Bakış</div>
                     
-                    {/* Özet Kartları */}
                     <div style={S.statsGrid}>
                       <div style={S.statCard}>
                         <div style={{...S.statIcon, background: "#ede9fe", color: "#6366f1"}}>📦</div>
@@ -174,12 +263,11 @@
                       </div>
                     </div>
 
-                    {/* Son Siparişler Listesi */}
                     <div style={S.card}>
                       <div style={S.cardTitle}>Son Siparişler</div>
                       <div style={{ marginTop: 12 }}>
                         {orders.slice(-4).reverse().map(o => (
-                          <div key={o.id} style={S.mobileListItem} onClick={() => setSelectedOrder(o)}>
+                          <div key={o.id} style={S.mobileListItem} onClick={() => { setFormError(""); setIsEditingOrder(false); setSelectedOrder(o); }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               <Avatar name={o.customerName} size={34} />
                               <div>
@@ -200,19 +288,18 @@
                   <div style={S.content}>
                     <div style={S.viewTitle}>Siparişler</div>
                     
-                    {/* Arama Filtreleri */}
+                    {/* Filtreleme Arayüzü */}
                     <div style={S.filterRow}>
-                      <input style={S.input} placeholder="Müşteri veya ürün ara..." value={search} onChange={e => setSearch(e.target.value)} />
+                      <input style={S.input} placeholder="Müşteri, ürün veya #ID ara..." value={search} onChange={e => setSearch(e.target.value)} />
                       <select style={S.select} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                        <option value="all">Tümü</option>
+                        <option value="all">Tüm Durumlar</option>
                         {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                       </select>
                     </div>
 
-                    {/* Sipariş Elemanları */}
                     <div style={{ paddingBottom: 20 }}>
-                      {filteredOrders.reverse().map(o => (
-                        <div key={o.id} style={S.orderCard} onClick={() => setSelectedOrder(o)}>
+                      {filteredOrders.slice().reverse().map(o => (
+                        <div key={o.id} style={S.orderCard} onClick={() => { setFormError(""); setIsEditingOrder(false); setSelectedOrder(o); }}>
                           <div style={S.orderCardTop}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               <Avatar name={o.customerName} size={36} />
@@ -229,7 +316,7 @@
                           </div>
                         </div>
                       ))}
-                      {filteredOrders.length === 0 && <div style={S.emptyState}>Sipariş bulunamadı.</div>}
+                      {filteredOrders.length === 0 && <div style={S.emptyState}>Aranan kriterde sipariş bulunamadı.</div>}
                     </div>
                   </div>
                 )}
@@ -238,26 +325,35 @@
                 {view === "customers" && (
                   <div style={S.content}>
                     <div style={S.viewTitle}>Müşteriler</div>
+                    
+                    <div style={S.filterRow}>
+                      <input style={S.input} placeholder="Müşteri adı veya telefon ara..." value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} />
+                    </div>
+
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 20 }}>
-                      {customers.map(c => (
-                        <div key={c.id} style={S.customerCard}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <Avatar name={c.name} size={40} />
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: 15, color: "#1e293b" }}>{c.name}</div>
-                              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>📞 {c.phone}</div>
-                              {c.email && <div style={{ fontSize: 12, color: "#64748b" }}>✉️ {c.email}</div>}
+                      {filteredCustomers.map(c => (
+                        <div key={c.id} style={S.customerCard} onClick={() => { setFormError(""); setIsEditingCustomer(false); setSelectedCustomer(c); }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyScontent: "space-between", width: "100%" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <Avatar name={c.name} size={40} />
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: 15, color: "#1e293b" }}>{c.name}</div>
+                                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>📞 {c.phone}</div>
+                                {c.email && <div style={{ fontSize: 12, color: "#64748b" }}>✉️ {c.email}</div>}
+                              </div>
                             </div>
+                            <span style={{color: "#a1a1aa", fontSize: 18}}>❯</span>
                           </div>
                         </div>
                       ))}
+                      {filteredCustomers.length === 0 && <div style={S.emptyState}>Müşteri bulunamadı.</div>}
                     </div>
                   </div>
                 )}
 
               </main>
 
-              {/* MOBİL ALT MENÜ (TAB BAR) - İŞTE ÇÖZÜMÜMÜZ! */}
+              {/* MOBİL ALT MENÜ (TAB BAR) */}
               <nav style={S.tabBar}>
                 {[
                   { key: "dashboard", icon: "📊", label: "Özet" },
@@ -271,33 +367,103 @@
                 ))}
               </nav>
 
-              {/* SİPARİŞ DETAY MODALI */}
+              {/* SİPARİŞ DETAY VE DÜZENLEME MODALI */}
               {selectedOrder && (
-                <div style={S.overlay} onClick={() => setSelectedOrder(null)}>
+                <div style={S.overlay} onClick={() => { setSelectedOrder(null); setIsEditingOrder(false); }}>
                   <div style={S.modal} onClick={e => e.stopPropagation()}>
                     <div style={S.modalHeader}>
-                      <div style={{ fontWeight: 800, fontSize: 18 }}>Sipariş Detayı</div>
-                      <button style={S.closeBtn} onClick={() => setSelectedOrder(null)}>✕</button>
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>{isEditingOrder ? "Siparişi Düzenle" : "Sipariş Detayı"}</div>
+                      <button style={S.closeBtn} onClick={() => { setSelectedOrder(null); setIsEditingOrder(false); }}>✕</button>
                     </div>
-                    <div style={S.modalBody}>
-                      <div style={S.detailRow}><span>Müşteri:</span> <b>{selectedOrder.customerName}</b></div>
-                      <div style={S.detailRow}   ><span>Ürün:</span> <span>{selectedOrder.product}</span></div>
-                      <div style={S.detailRow}   ><span>Tutar:</span> <b style={{color: "#10b981"}}>₺{selectedOrder.amount}</b></div>
-                      <div style={S.detailRow}   ><span>Tarih:</span> <span>{selectedOrder.date}</span></div>
-                      <div style={{...S.detailRow, border: "none"}}><span>Mevcut Durum:</span> <StatusBadge status={selectedOrder.status} /></div>
-                      
-                      <div style={{ marginTop: 15, paddingTop: 15, borderTop: "1px solid #e2e8f0" }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8 }}>DURUMU GÜNCELLE</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                            <button key={k}
-                              style={{ padding: "8px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", background: selectedOrder.status === k ? v.color : "#f1f5f9", color: selectedOrder.status === k ? "#fff" : "#475569" }}
-                              onClick={() => updateStatus(selectedOrder.id, k)}
-                            >{v.label}</button>
-                          ))}
+                    
+                    {formError && <div style={S.errorMsg}>{formError}</div>}
+
+                    {isEditingOrder ? (
+                      <div style={S.modalBody}>
+                        <label style={S.label}>Müşteri Adı</label>
+                        <input style={S.inputFull} value={selectedOrder.customerName} onChange={e => setSelectedOrder({...selectedOrder, customerName: e.target.value})} />
+                        <label style={S.label}>Ürün</label>
+                        <input style={S.inputFull} value={selectedOrder.product} onChange={e => setSelectedOrder({...selectedOrder, product: e.target.value})} />
+                        <label style={S.label}>Tutar (₺)</label>
+                        <input style={S.inputFull} type="number" value={selectedOrder.amount} onChange={e => setSelectedOrder({...selectedOrder, amount: e.target.value})} />
+                        <label style={S.label}>Tarih</label>
+                        <input style={S.inputFull} type="date" value={selectedOrder.date} onChange={e => setSelectedOrder({...selectedOrder, date: e.target.value})} />
+                        
+                        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                          <button style={{...S.btnPrimary, flex: 1}} onClick={handleSaveEditOrder}>Değişiklikleri Kaydet</button>
+                          <button style={{...S.btnSecondary, flex: 1}} onClick={() => { setIsEditingOrder(false); setFormError(""); }}>İptal</button>
                         </div>
                       </div>
+                    ) : (
+                      <div style={S.modalBody}>
+                        <div style={S.detailRow}><span>Müşteri:</span> <b>{selectedOrder.customerName}</b></div>
+                        <div style={S.detailRow}><span>Ürün:</span> <span>{selectedOrder.product}</span></div>
+                        <div style={S.detailRow}><span>Tutar:</span> <b style={{color: "#10b981"}}>₺{selectedOrder.amount}</b></div>
+                        <div style={S.detailRow}><span>Tarih:</span> <span>{selectedOrder.date}</span></div>
+                        <div style={{...S.detailRow, border: "none"}}><span>Mevcut Durum:</span> <StatusBadge status={selectedOrder.status} /></div>
+                        
+                        <div style={{ marginTop: 10, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 8 }}>DURUMU GÜNCELLE</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                              <button key={k}
+                                style={{ padding: "6px 4px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", background: selectedOrder.status === k ? v.color : "#f1f5f9", color: selectedOrder.status === k ? "#fff" : "#475569" }}
+                                onClick={() => updateStatus(selectedOrder.id, k)}
+                              >{v.label}</button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10, marginTop: 15, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                          <button style={{...S.btnSecondary, flex: 1, background: "#fef2f2", color: "#ef4444", border: "1px solid #fee2fee"}} onClick={() => handleDeleteOrder(selectedOrder.id)}>🗑️ Siparişi Sil</button>
+                          <button style={{...S.btnPrimary, flex: 1}} onClick={() => setIsEditingOrder(true)}>✏️ Düzenle</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* MÜŞTERİ DETAY VE DÜZENLEME MODALI */}
+              {selectedCustomer && (
+                <div style={S.overlay} onClick={() => { setSelectedCustomer(null); setIsEditingCustomer(false); }}>
+                  <div style={S.modal} onClick={e => e.stopPropagation()}>
+                    <div style={S.modalHeader}>
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>{isEditingCustomer ? "Müşteriyi Düzenle" : "Müşteri Bilgisi"}</div>
+                      <button style={S.closeBtn} onClick={() => { setSelectedCustomer(null); setIsEditingCustomer(false); }}>✕</button>
                     </div>
+
+                    {formError && <div style={S.errorMsg}>{formError}</div>}
+
+                    {isEditingCustomer ? (
+                      <div style={S.modalBody}>
+                        <label style={S.label}>Ad Soyad</label>
+                        <input style={S.inputFull} value={selectedCustomer.name} onChange={e => setSelectedCustomer({...selectedCustomer, name: e.target.value})} />
+                        <label style={S.label}>Telefon</label>
+                        <input style={S.inputFull} value={selectedCustomer.phone} onChange={e => setSelectedCustomer({...selectedCustomer, phone: e.target.value})} />
+                        <label style={S.label}>E-posta</label>
+                        <input style={S.inputFull} value={selectedCustomer.email || ""} onChange={e => setSelectedCustomer({...selectedCustomer, email: e.target.value})} />
+                        
+                        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                          <button style={{...S.btnPrimary, flex: 1}} onClick={handleSaveEditCustomer}>Kaydet</button>
+                          <button style={{...S.btnSecondary, flex: 1}} onClick={() => { setIsEditingCustomer(false); setFormError(""); }}>İptal</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={S.modalBody}>
+                        <div style={{display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "10px 0"}}>
+                          <Avatar name={selectedCustomer.name} size={60} />
+                          <div style={{fontSize: 18, fontWeight: 700, color: "#1e293b"}}>{selectedCustomer.name}</div>
+                        </div>
+                        <div style={S.detailRow}><span>Telefon:</span> <b>{selectedCustomer.phone}</b></div>
+                        <div style={S.detailRow}><span>E-posta:</span> <span>{selectedCustomer.email || "Girilmemiş"}</span></div>
+                        
+                        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                          <button style={{...S.btnSecondary, flex: 1, background: "#fef2f2", color: "#ef4444", border: "1px solid #fee2e2"}} onClick={() => handleDeleteCustomer(selectedCustomer.id)}>🗑️ Müşteriyi Sil</button>
+                          <button style={{...S.btnPrimary, flex: 1}} onClick={() => setIsEditingCustomer(true)}>✏️ Bilgileri Düzenle</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -310,12 +476,13 @@
                       <div style={{ fontWeight: 800, fontSize: 18 }}>Yeni Sipariş Ekle</div>
                       <button style={S.closeBtn} onClick={() => setShowAddOrder(false)}>✕</button>
                     </div>
+                    {formError && <div style={S.errorMsg}>{formError}</div>}
                     <div style={S.modalBody}>
-                      <input style={S.inputFull} placeholder="Müşteri Adı Soyadı" value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} />
-                      <input style={S.inputFull} placeholder="Satılan Ürün" value={newOrder.product} onChange={e => setNewOrder({...newOrder, product: e.target.value})} />
-                      <input style={S.inputFull} type="number" placeholder="Tutar (₺)" value={newOrder.amount} onChange={e => setNewOrder({...newOrder, amount: e.target.value})} />
+                      <input style={S.inputFull} placeholder="Müşteri Adı Soyadı *" value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} />
+                      <input style={S.inputFull} placeholder="Satılan Ürün *" value={newOrder.product} onChange={e => setNewOrder({...newOrder, product: e.target.value})} />
+                      <input style={S.inputFull} type="number" placeholder="Tutar (₺) *" value={newOrder.amount} onChange={e => setNewOrder({...newOrder, amount: e.target.value})} />
                       <input style={S.inputFull} type="date" value={newOrder.date} onChange={e => setNewOrder({...newOrder, date: e.target.value})} />
-                      <button style={{...S.btnPrimary, width: "100%", marginTop: 10}} onClick={addOrder}>Siparişi Kaydet</button>
+                      <button style={{...S.btnPrimary, width: "100%", marginTop: 10}} onClick={handleAddOrder}>Siparişi Kaydet</button>
                     </div>
                   </div>
                 </div>
@@ -324,66 +491,4 @@
               {/* YENİ MÜŞTERİ EKLEME MODALI */}
               {showAddCustomer && (
                 <div style={S.overlay} onClick={() => setShowAddCustomer(false)}>
-                  <div style={S.modal} onClick={e => e.stopPropagation()}>
-                    <div style={S.modalHeader}>
-                      <div style={{ fontWeight: 800, fontSize: 18 }}>Yeni Müşteri Ekle</div>
-                      <button style={S.closeBtn} onClick={() => setShowAddCustomer(false)}>✕</button>
-                    </div>
-                    <div style={S.modalBody}>
-                      <input style={S.inputFull} placeholder="Müşteri Adı Soyadı" value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} />
-                      <input style={S.inputFull} placeholder="Telefon Numarası" value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} />
-                      <input style={S.inputFull} placeholder="E-posta Adresi (Opsiyonel)" value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} />
-                      <button style={{...S.btnPrimary, width: "100%", marginTop: 10}} onClick={addCustomer}>Müşteriyi Kaydet</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        }
-
-        const styles = {
-          root: { display: "flex", flexDirection: "column", height: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", overflow: "hidden" },
-          header: { background: "#0f172a", color: "#fff", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShaddow: "0 2px 4px rgba(0,0,0,0.1)" },
-          headerLeft: { display: "flex", alignItems: "center", gap: 8 },
-          headerTitle: { fontWeight: 700, fontSize: 16, fontFamily: "'DM Serif Display', Georgia, serif", letterSpacing: 0.5 },
-          main: { flex: 1, overflowY: "auto", paddingBottom: 70 }, // Alt menü boşluğu
-          content: { padding: 16 },
-          viewTitle: { fontSıze: 20, fontWeight: 800, color: "#1e293b", marginBottom: 14, fontFamily: "'DM Serif Display', Georgia, serif" },
-          statsGrid: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 },
-          statCard: { background: "#fff", borderRadius: 12, padding: 12, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
-          statIcon: { width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: "bold" },
-          statValue: { fontSize: 18, fontWeight: 700, color: "#1e293b" },
-          statLabel: { fontSize: 11, color: "#64748b" },
-          card: { background: "#fff", borderRadius: 12, padding: 14, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
-          cardTitle: { fontWeight: 700, fontSize: 14, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 8 },
-          mobileListItem: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f8fafc" },
-          itemTitle: { fontWeight: 600, fontSize: 13, color: "#1e293b" },
-          itemSub: { fontSize: 11, color: "#64748b", marginTop: 2 },
-          filterRow: { display: "flex", gap: 8, marginBottom: 12 },
-          input: { flex: 1, padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none" },
-          select: { padding: "8px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, background: "#fff" },
-          orderCard: { background: "#fff", borderRadius: 12, padding: 12, marginBottom: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
-          orderCardTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
-          orderCardBottom: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTop: "1px solid #f8fafc" },
-          customerCard: { background: "#fff", borderRadius: 12, padding: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
-          emptyState: { textAlign: "center", padding: 30, color: "#94a3b8", fontSize: 13 },
-          tabBar: { position: "fixed", bottom: 0, left: 0, right: 0, height: 56, background: "#fff", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-around", alignItems: "center", zIndex: 100 },
-          tabBtn: { display: "flex", flexDirection: "column", alignItems: "center", background: "transparent", border: "none", color: "#94a3b8", fontSize: 10, fontWeight: 500, cursor: "pointer" },
-          tabBtnActive: { color: "#6366f1", fontWeight: 700 },
-          btnPrimary: { padding: "10px 16px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13 },
-          btnPrimarySmall: { padding: "6px 12px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 12 },
-          overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 },
-          modal: { background: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, width: "100%", boxSizing: "border-box", animation: "slideUp 0.3s ease-out" },
-          modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
-          closeBtn: { background: "#f1f5f9", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "#64748b" },
-          modalBody: { display: "flex", flexDirection: "column", gap: 10 },
-          detailRow: { display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f1f5f9", fontSize: 13 },
-          inputFull: { width: "100%", padding: "10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, boxSizing: "border-box", outline: "none" }
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+                  <div style={S
