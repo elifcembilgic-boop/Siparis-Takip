@@ -1,0 +1,16 @@
+{
+  "name": "OrderFlow Sipariş Takip",
+  "short_name": "OrderFlow",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1280",
+      "type": "image/png"
+    }
+  ]
+}
