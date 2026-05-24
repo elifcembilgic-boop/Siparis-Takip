@@ -1,0 +1,449 @@
+import { useState } from "react";
+
+const initialCustomers = [
+  { id: 1, name: "Ahmet Yılmaz", email: "ahmet@email.com", phone: "0532 111 2233", totalOrders: 3, totalSpent: 1250 },
+  { id: 2, name: "Fatma Demir", email: "fatma@email.com", phone: "0541 444 5566", totalOrders: 7, totalSpent: 4800 },
+  { id: 3, name: "Mehmet Kaya", email: "mehmet@email.com", phone: "0555 777 8899", totalOrders: 2, totalSpent: 680 },
+];
+
+const initialOrders = [
+  { id: 1001, customerId: 1, customerName: "Ahmet Yılmaz", product: "Laptop Stand", amount: 450, status: "teslim_edildi", date: "2026-05-10" },
+  { id: 1002, customerId: 2, customerName: "Fatma Demir", product: "Mekanik Klavye", amount: 1200, status: "kargoda", date: "2026-05-18" },
+  { id: 1003, customerId: 2, customerName: "Fatma Demir", product: "Mouse Pad XL", amount: 350, status: "hazirlaniyor", date: "2026-05-20" },
+  { id: 1004, customerId: 3, customerName: "Mehmet Kaya", product: "USB Hub", amount: 280, status: "beklemede", date: "2026-05-22" },
+  { id: 1005, customerId: 1, customerName: "Ahmet Yılmaz", product: "Webcam HD", amount: 800, status: "hazirlaniyor", date: "2026-05-23" },
+];
+
+const STATUS_CONFIG = {
+  beklemede:      { label: "Beklemede",      color: "#f59e0b", bg: "#fef3c7", dot: "#f59e0b" },
+  hazirlaniyor:   { label: "Hazırlanıyor",   color: "#3b82f6", bg: "#dbeafe", dot: "#3b82f6" },
+  kargoda:        { label: "Kargoda",        color: "#8b5cf6", bg: "#ede9fe", dot: "#8b5cf6" },
+  teslim_edildi:  { label: "Teslim Edildi",  color: "#10b981", bg: "#d1fae5", dot: "#10b981" },
+  iptal:          { label: "İptal",          color: "#ef4444", bg: "#fee2e2", dot: "#ef4444" },
+};
+
+function StatusBadge({ status }) {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.beklemede;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+      color: cfg.color, background: cfg.bg
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: cfg.dot, display: "inline-block" }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+function Avatar({ name, size = 36 }) {
+  const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const colors = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#8b5cf6"];
+  const color = colors[name.charCodeAt(0) % colors.length];
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", background: color,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", fontWeight: 700, fontSize: size * 0.35, flexShrink: 0
+    }}>{initials}</div>
+  );
+}
+
+export default function App() {
+  const [view, setView] = useState("dashboard");
+  const [orders, setOrders] = useState(initialOrders);
+  const [customers, setCustomers] = useState(initialCustomers);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [search, setSearch] = useState("");
+  const [showAddOrder, setShowAddOrder] = useState(false);
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [newOrder, setNewOrder] = useState({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0] });
+  const [newCustomer, setNewCustomer] = useState({ name: "", email: "", phone: "" });
+
+  const totalRevenue = orders.filter(o => o.status === "teslim_edildi").reduce((s, o) => s + o.amount, 0);
+  const activeOrders = orders.filter(o => !["teslim_edildi","iptal"].includes(o.status)).length;
+
+  const filteredOrders = orders
+    .filter(o => filterStatus === "all" || o.status === filterStatus)
+    .filter(o => o.customerName.toLowerCase().includes(search.toLowerCase()) || o.product.toLowerCase().includes(search.toLowerCase()) || String(o.id).includes(search));
+
+  function addOrder() {
+    if (!newOrder.customerName || !newOrder.product || !newOrder.amount) return;
+    const id = Math.max(...orders.map(o => o.id)) + 1;
+    setOrders([...orders, { ...newOrder, id, customerId: 0, amount: Number(newOrder.amount) }]);
+    setNewOrder({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0] });
+    setShowAddOrder(false);
+  }
+
+  function addCustomer() {
+    if (!newCustomer.name || !newCustomer.email) return;
+    const id = Math.max(...customers.map(c => c.id)) + 1;
+    setCustomers([...customers, { ...newCustomer, id, totalOrders: 0, totalSpent: 0 }]);
+    setNewCustomer({ name: "", email: "", phone: "" });
+    setShowAddCustomer(false);
+  }
+
+  function updateStatus(orderId, status) {
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o));
+    if (selectedOrder?.id === orderId) setSelectedOrder({ ...selectedOrder, status });
+  }
+
+  const S = styles;
+
+  return (
+    <div style={S.root}>
+      {/* Sidebar */}
+      <aside style={S.sidebar}>
+        <div style={S.logo}>
+          <div style={S.logoIcon}>📦</div>
+          <div>
+            <div style={S.logoTitle}>OrderFlow</div>
+            <div style={S.logoSub}>Takip Sistemi</div>
+          </div>
+        </div>
+        <nav style={S.nav}>
+          {[
+            { key: "dashboard", icon: "⬛", label: "Genel Bakış" },
+            { key: "orders", icon: "📋", label: "Siparişler" },
+            { key: "customers", icon: "👥", label: "Müşteriler" },
+          ].map(item => (
+            <button key={item.key} style={{ ...S.navBtn, ...(view === item.key ? S.navBtnActive : {}) }} onClick={() => setView(item.key)}>
+              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div style={S.sidebarFooter}>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>v1.0 · OrderFlow</div>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main style={S.main}>
+        {/* Header */}
+        <div style={S.header}>
+          <div>
+            <div style={S.headerTitle}>
+              {view === "dashboard" && "Genel Bakış"}
+              {view === "orders" && "Siparişler"}
+              {view === "customers" && "Müşteriler"}
+            </div>
+            <div style={S.headerSub}>
+              {new Date().toLocaleDateString("tr-TR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {view === "orders" && (
+              <button style={S.btnPrimary} onClick={() => setShowAddOrder(true)}>+ Sipariş Ekle</button>
+            )}
+            {view === "customers" && (
+              <button style={S.btnPrimary} onClick={() => setShowAddCustomer(true)}>+ Müşteri Ekle</button>
+            )}
+          </div>
+        </div>
+
+        {/* DASHBOARD */}
+        {view === "dashboard" && (
+          <div style={S.content}>
+            {/* Stat cards */}
+            <div style={S.statsGrid}>
+              {[
+                { label: "Toplam Sipariş", value: orders.length, icon: "📦", color: "#6366f1" },
+                { label: "Aktif Sipariş", value: activeOrders, icon: "🔄", color: "#f59e0b" },
+                { label: "Toplam Gelir", value: `₺${totalRevenue.toLocaleString("tr-TR")}`, icon: "💰", color: "#10b981" },
+                { label: "Müşteri Sayısı", value: customers.length, icon: "👥", color: "#3b82f6" },
+              ].map(card => (
+                <div key={card.label} style={{ ...S.statCard, borderTop: `3px solid ${card.color}` }}>
+                  <div style={{ fontSize: 28 }}>{card.icon}</div>
+                  <div>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: "#1e293b", fontFamily: "'DM Serif Display', Georgia, serif" }}>{card.value}</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{card.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Status breakdown */}
+            <div style={S.card}>
+              <div style={S.cardTitle}>Sipariş Durumu Dağılımı</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
+                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+                  const count = orders.filter(o => o.status === key).length;
+                  return (
+                    <div key={key} style={{ ...S.statusCard, background: cfg.bg, border: `1.5px solid ${cfg.color}22` }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: cfg.color }}>{count}</div>
+                      <div style={{ fontSize: 12, color: cfg.color, fontWeight: 600 }}>{cfg.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Recent orders */}
+            <div style={S.card}>
+              <div style={S.cardTitle}>Son Siparişler</div>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    {["#", "Müşteri", "Ürün", "Tutar", "Durum", "Tarih"].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.slice(-5).reverse().map(o => (
+                    <tr key={o.id} style={S.tr}>
+                      <td style={{ ...S.td, fontWeight: 700, color: "#6366f1" }}>#{o.id}</td>
+                      <td style={S.td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Avatar name={o.customerName} size={28} />
+                          {o.customerName}
+                        </div>
+                      </td>
+                      <td style={S.td}>{o.product}</td>
+                      <td style={{ ...S.td, fontWeight: 700 }}>₺{o.amount.toLocaleString("tr-TR")}</td>
+                      <td style={S.td}><StatusBadge status={o.status} /></td>
+                      <td style={{ ...S.td, color: "#94a3b8" }}>{o.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ORDERS */}
+        {view === "orders" && (
+          <div style={S.content}>
+            {/* Filters */}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+              <input
+                style={S.input}
+                placeholder="Ara: müşteri, ürün, #no..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              <select style={S.select} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="all">Tüm Durumlar</option>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={S.card}>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    {["Sipariş #", "Müşteri", "Ürün", "Tutar", "Durum", "Tarih", "İşlem"].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map(o => (
+                    <tr key={o.id} style={{ ...S.tr, cursor: "pointer" }} onClick={() => setSelectedOrder(o)}>
+                      <td style={{ ...S.td, fontWeight: 700, color: "#6366f1" }}>#{o.id}</td>
+                      <td style={S.td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Avatar name={o.customerName} size={30} />
+                          {o.customerName}
+                        </div>
+                      </td>
+                      <td style={S.td}>{o.product}</td>
+                      <td style={{ ...S.td, fontWeight: 700 }}>₺{o.amount.toLocaleString("tr-TR")}</td>
+                      <td style={S.td}><StatusBadge status={o.status} /></td>
+                      <td style={{ ...S.td, color: "#94a3b8" }}>{o.date}</td>
+                      <td style={S.td} onClick={e => e.stopPropagation()}>
+                        <select
+                          style={{ ...S.select, fontSize: 12, padding: "4px 8px" }}
+                          value={o.status}
+                          onChange={e => updateStatus(o.id, e.target.value)}
+                        >
+                          {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredOrders.length === 0 && (
+                    <tr><td colSpan={7} style={{ ...S.td, textAlign: "center", color: "#94a3b8", padding: 40 }}>Sonuç bulunamadı</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOMERS */}
+        {view === "customers" && (
+          <div style={S.content}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+              {customers.map(c => {
+                const cOrders = orders.filter(o => o.customerName === c.name);
+                const spent = cOrders.reduce((s, o) => s + o.amount, 0);
+                return (
+                  <div key={c.id} style={S.customerCard}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                      <Avatar name={c.name} size={48} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>{c.name}</div>
+                        <div style={{ fontSize: 13, color: "#64748b" }}>{c.email}</div>
+                        <div style={{ fontSize: 13, color: "#64748b" }}>{c.phone}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <div style={S.customerStat}>
+                        <div style={{ fontWeight: 800, fontSize: 20, color: "#6366f1" }}>{cOrders.length}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>Sipariş</div>
+                      </div>
+                      <div style={S.customerStat}>
+                        <div style={{ fontWeight: 800, fontSize: 20, color: "#10b981" }}>₺{spent.toLocaleString("tr-TR")}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>Toplam Harcama</div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 14 }}>
+                      {cOrders.slice(-2).map(o => (
+                        <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderTop: "1px solid #f1f5f9" }}>
+                          <span style={{ fontSize: 13, color: "#475569" }}>{o.product}</span>
+                          <StatusBadge status={o.status} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div style={S.overlay} onClick={() => setSelectedOrder(null)}>
+          <div style={S.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: "#1e293b", fontFamily: "'DM Serif Display', Georgia, serif" }}>Sipariş #{selectedOrder.id}</div>
+                <div style={{ color: "#94a3b8", fontSize: 13 }}>{selectedOrder.date}</div>
+              </div>
+              <button style={S.closeBtn} onClick={() => setSelectedOrder(null)}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={S.detailRow}><span style={S.detailLabel}>Müşteri</span><span style={S.detailValue}>{selectedOrder.customerName}</span></div>
+              <div style={S.detailRow}><span style={S.detailLabel}>Ürün</span><span style={S.detailValue}>{selectedOrder.product}</span></div>
+              <div style={S.detailRow}><span style={S.detailLabel}>Tutar</span><span style={{ ...S.detailValue, color: "#10b981", fontWeight: 800 }}>₺{selectedOrder.amount.toLocaleString("tr-TR")}</span></div>
+              <div style={S.detailRow}><span style={S.detailLabel}>Durum</span><StatusBadge status={selectedOrder.status} /></div>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#64748b", marginBottom: 8 }}>Durumu Güncelle</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  <button key={k}
+                    style={{ padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: selectedOrder.status === k ? v.color : v.bg, color: selectedOrder.status === k ? "#fff" : v.color, transition: "all .2s" }}
+                    onClick={() => updateStatus(selectedOrder.id, k)}
+                  >{v.label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Order Modal */}
+      {showAddOrder && (
+        <div style={S.overlay} onClick={() => setShowAddOrder(false)}>
+          <div style={S.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 20, fontFamily: "'DM Serif Display', Georgia, serif" }}>Yeni Sipariş</div>
+            {[
+              { label: "Müşteri Adı", key: "customerName", type: "text", placeholder: "Ad Soyad" },
+              { label: "Ürün", key: "product", type: "text", placeholder: "Ürün adı" },
+              { label: "Tutar (₺)", key: "amount", type: "number", placeholder: "0" },
+              { label: "Tarih", key: "date", type: "date" },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>{f.label}</label>
+                <input style={S.inputFull} type={f.type} placeholder={f.placeholder} value={newOrder[f.key]} onChange={e => setNewOrder({ ...newOrder, [f.key]: e.target.value })} />
+              </div>
+            ))}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>Durum</label>
+              <select style={S.inputFull} value={newOrder.status} onChange={e => setNewOrder({ ...newOrder, status: e.target.value })}>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button style={S.btnPrimary} onClick={addOrder}>Ekle</button>
+              <button style={S.btnSecondary} onClick={() => setShowAddOrder(false)}>İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Customer Modal */}
+      {showAddCustomer && (
+        <div style={S.overlay} onClick={() => setShowAddCustomer(false)}>
+          <div style={S.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 20, fontFamily: "'DM Serif Display', Georgia, serif" }}>Yeni Müşteri</div>
+            {[
+              { label: "Ad Soyad", key: "name", placeholder: "Ad Soyad" },
+              { label: "E-posta", key: "email", placeholder: "email@domain.com" },
+              { label: "Telefon", key: "phone", placeholder: "0500 000 0000" },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>{f.label}</label>
+                <input style={S.inputFull} placeholder={f.placeholder} value={newCustomer[f.key]} onChange={e => setNewCustomer({ ...newCustomer, [f.key]: e.target.value })} />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button style={S.btnPrimary} onClick={addCustomer}>Ekle</button>
+              <button style={S.btnSecondary} onClick={() => setShowAddCustomer(false)}>İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const styles = {
+  root: { display: "flex", height: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" },
+  sidebar: { width: 220, background: "#0f172a", display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0 },
+  logo: { display: "flex", alignItems: "center", gap: 12, padding: "0 20px 24px", borderBottom: "1px solid #1e293b" },
+  logoIcon: { fontSize: 28 },
+  logoTitle: { fontWeight: 800, fontSize: 16, color: "#f1f5f9", fontFamily: "'DM Serif Display', Georgia, serif" },
+  logoSub: { fontSize: 11, color: "#475569", marginTop: 1 },
+  nav: { padding: "20px 12px", display: "flex", flexDirection: "column", gap: 4 },
+  navBtn: { display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", cursor: "pointer", fontSize: 14, fontWeight: 500, textAlign: "left", transition: "all .15s" },
+  navBtnActive: { background: "#1e293b", color: "#f1f5f9" },
+  sidebarFooter: { marginTop: "auto", padding: "16px 20px", borderTop: "1px solid #1e293b" },
+  main: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
+  header: { background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  headerTitle: { fontWeight: 800, fontSize: 22, color: "#1e293b", fontFamily: "'DM Serif Display', Georgia, serif" },
+  headerSub: { fontSize: 13, color: "#94a3b8", marginTop: 2 },
+  content: { flex: 1, overflowY: "auto", padding: 28 },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginBottom: 24 },
+  statCard: { background: "#fff", borderRadius: 14, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 1px 3px #0001" },
+  card: { background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 3px #0001", marginBottom: 20 },
+  cardTitle: { fontWeight: 700, fontSize: 16, color: "#1e293b" },
+  statusCard: { padding: "14px 20px", borderRadius: 12, textAlign: "center", minWidth: 80 },
+  table: { width: "100%", borderCollapse: "collapse", marginTop: 16 },
+  th: { textAlign: "left", padding: "10px 12px", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "2px solid #f1f5f9" },
+  tr: { borderBottom: "1px solid #f8fafc", transition: "background .1s" },
+  td: { padding: "12px 12px", fontSize: 14, color: "#374151" },
+  customerCard: { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 4px #0001" },
+  customerStat: { flex: 1, background: "#f8fafc", borderRadius: 10, padding: "12px 14px", textAlign: "center" },
+  overlay: { position: "fixed", inset: 0, background: "#0009", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
+  modal: { background: "#fff", borderRadius: 20, padding: 32, width: 440, maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px #0003" },
+  closeBtn: { background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14, color: "#64748b" },
+  detailRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" },
+  detailLabel: { fontSize: 13, color: "#94a3b8", fontWeight: 500 },
+  detailValue: { fontSize: 15, fontWeight: 600, color: "#1e293b" },
+  input: { padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, minWidth: 240, outline: "none", background: "#f8fafc" },
+  inputFull: { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none", background: "#f8fafc", boxSizing: "border-box" },
+  select: { padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, background: "#f8fafc", outline: "none", cursor: "pointer" },
+  btnPrimary: { padding: "10px 20px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
+  btnSecondary: { padding: "10px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, cursor: "pointer" },
+};
