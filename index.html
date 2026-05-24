@@ -34,7 +34,6 @@
         const initialOrders = [
           { id: 1001, customerName: "Ahmet Yılmaz", product: "Laptop Stand", amount: 450, status: "teslim_edildi", date: "2026-05-10", notes: "Hediye paketi istendi.", trackingNo: "TR123456789" },
           { id: 1002, customerName: "Fatma Demir", product: "Mekanik Klavye", amount: 1200, status: "kargoda", date: "2026-05-18", notes: "Kargo acil.", trackingNo: "TR987654321" },
-          { id: 1003, customerName: "Fatma Demir", product: "Mouse Pad XL", amount: 350, status: "hazirlaniyor", date: "2026-05-20", notes: "", trackingNo: "" },
         ];
 
         const STATUS_CONFIG = {
@@ -88,6 +87,8 @@
           // Modallar
           const [showAddOrder, setShowAddOrder] = useState(false);
           const [showAddCustomer, setShowAddCustomer] = useState(false);
+          const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false); // Hızlı müşteri modalı
+          
           const [selectedOrder, setSelectedOrder] = useState(null);
           const [selectedCustomer, setSelectedCustomer] = useState(null);
           
@@ -99,6 +100,7 @@
           // Form States
           const [newOrder, setNewOrder] = useState({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0], notes: "", trackingNo: "" });
           const [newCustomer, setNewCustomer] = useState({ name: "", email: "", phone: "" });
+          const [quickCustomer, setQuickCustomer] = useState({ name: "", phone: "" });
 
           // İstatistikler
           const totalRevenue = orders.filter(o => o.status === "teslim_edildi").reduce((s, o) => s + Number(o.amount || 0), 0);
@@ -121,7 +123,7 @@
           // Sipariş Ekle
           function handleAddOrder() {
             if (!newOrder.customerName || !newOrder.product || !String(newOrder.amount).trim()) {
-              setFormError("Lütfen Müşteri, Ürün ve Tutar alanlarını doldurun.");
+              setFormError("Lütfen Müşteri, Ürün ve Tutar alanlarını dolduron.");
               return;
             }
             const id = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1001;
@@ -129,6 +131,21 @@
             setNewOrder({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0], notes: "", trackingNo: "" });
             setShowAddOrder(false);
             setFormError("");
+          }
+
+          // Hızlı Müşteri Ekle (Sipariş Ekranındayken)
+          function handleAddQuickCustomer() {
+            if (!quickCustomer.name.trim() || !quickCustomer.phone.trim()) {
+              alert("Ad Soyad ve Telefon zorunludur.");
+              return;
+            }
+            const id = customers.length > 0 ? Math.max(...customers.map(c => c.id)) + 1 : 1;
+            const createdCustomer = { id, name: quickCustomer.name.trim(), phone: quickCustomer.phone.trim(), email: "" };
+            
+            setCustomers([...customers, createdCustomer]);
+            setNewOrder({ ...newOrder, customerName: createdCustomer.name }); // Siparişe otomatik seç
+            setQuickCustomer({ name: "", phone: "" });
+            setShowQuickCustomerModal(false);
           }
 
           // Sipariş Düzenlemeyi Kaydet
@@ -141,6 +158,14 @@
             setIsEditingOrder(false);
             setSelectedOrder(null);
             setFormError("");
+          }
+
+          // Sipariş Durumunu Anlık Değiştir (HIZLANDIRILDI)
+          function handleInstantStatusUpdate(orderId, newStatus) {
+            const updatedOrders = orders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
+            setOrders(updatedOrders);
+            // Modal içindeki state'i de anında güncelle ki gözünün önünde değişsin
+            setSelectedOrder({ ...selectedOrder, status: newStatus });
           }
 
           // Sipariş Sil
@@ -334,11 +359,15 @@
                     </div>
                     {formError && <div style={S.errorMsg}>{formError}</div>}
                     <div style={S.modalBody}>
+                      
                       <label style={S.label}>Müşteri Seçin *</label>
-                      <select style={S.selectFull} value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})}>
-                        <option value="">-- Listeden Seçin --</option>
-                        {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <select style={{...S.selectFull, flex: 1}} value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})}>
+                          <option value="">-- Listeden Seçin --</option>
+                          {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                        <button type="button" style={S.btnQuickAdd} onClick={() => setShowQuickCustomerModal(true)}>➕ Yeni</button>
+                      </div>
 
                       <label style={S.label}>Satılan Ürün *</label>
                       <input style={S.inputFull} placeholder="Örn: Deri Çanta" value={newOrder.product} onChange={e => setNewOrder({...newOrder, product: e.target.value})} />
@@ -361,6 +390,23 @@
                       <textarea style={S.textarea} placeholder="Müşteri talepleri, adres veya özel notlar..." rows="3" value={newOrder.notes} onChange={e => setNewOrder({...newOrder, notes: e.target.value})} />
 
                       <button style={{...S.btnPrimary, width: "100%", marginTop: 10}} onClick={handleAddOrder}>Siparişi Kaydet</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* HIZLI MÜŞTERİ EKLEME ALT MODALI */}
+              {showQuickCustomerModal && (
+                <div style={{...S.overlay, zIndex: 1100}} onClick={() => setShowQuickCustomerModal(false)}>
+                  <div style={S.modal} onClick={e => e.stopPropagation()}>
+                    <div style={S.modalHeader}>
+                      <div style={S.modalTitle}>Hızlı Müşteri Kaydı</div>
+                      <button style={S.closeBtn} onClick={() => setShowQuickCustomerModal(false)}>✕</button>
+                    </div>
+                    <div style={S.modalBody}>
+                      <input style={S.inputFull} placeholder="Müşteri Adı Soyadı *" value={quickCustomer.name} onChange={e => setQuickCustomer({...quickCustomer, name: e.target.value})} />
+                      <input style={S.inputFull} placeholder="Telefon Numarası *" value={quickCustomer.phone} onChange={e => setQuickCustomer({...quickCustomer, phone: e.target.value})} />
+                      <button style={{...S.btnPrimary, width: "100%", marginTop: 5, background: "#10b981"}} onClick={handleAddQuickCustomer}>Müşteriyi Siparişe Ekle</button>
                     </div>
                   </div>
                 </div>
@@ -409,12 +455,12 @@
                         </div>
                         
                         <div style={{ marginTop: 10, padding: "10px 0", borderTop: "1px solid #e2e8f0" }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>DURUMU GÜNCELLE</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>DURUMU ANLIK GÜNCELLE</div>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                             {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                               <button key={k}
-                                style={{ padding: "8px 4px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 600, background: selectedOrder.status === k ? v.color : "#f1f5f9", color: selectedOrder.status === k ? "#fff" : "#475569" }}
-                                onClick={() => setOrders(orders.map(o => o.id === selectedOrder.id ? {...o, status: k} : o))}
+                                style={{ padding: "10px 4px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", background: selectedOrder.status === k ? v.color : "#f1f5f9", color: selectedOrder.status === k ? "#fff" : "#475569" }}
+                                onClick={() => handleInstantStatusUpdate(selectedOrder.id, k)}
                               >{v.label}</button>
                             ))}
                           </div>
@@ -528,6 +574,7 @@
           btnPrimary: { padding: "10px 16px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13 },
           btnPrimarySmall: { padding: "6px 12px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 12 },
           btnSecondary: { padding: "10px 16px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13 },
+          btnQuickAdd: { padding: "9px 12px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
           overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 },
           modal: { background: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, width: "100%", boxSizing: "border-box", animation: "slideUp 0.2s ease-out", maxHeight: "92vh", overflowY: "auto" },
           modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
