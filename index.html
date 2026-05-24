@@ -1,114 +1,56 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<link rel="manifest" href="manifest.json">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OrderFlow - Sipariş Takip Sistemi</title>
-    <!-- Google Fonts -->
+    <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
     
-    <!-- React ve Babel (Hata ayıklama sürümü) -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body { margin: 0; padding: 0; background: #f8fafc; }
-        .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'DM Sans', sans-serif; color: #475569; text-align: center; padding: 20px; }
-        .loading-title { font-size: 24px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
-        .loading-text { font-size: 16px; max-width: 400px; line-height: 1.5; }
-        .highlight { color: #6366f1; font-weight: 700; }
+        body { margin: 0; padding: 0; background: #f8fafc; -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
 <body>
 
-    <!-- Yükleme Ekranı (React çalışmazsa bu ekranda kalır, çalışırsa burayı ezer) -->
-    <div id="root">
-        <div class="loading-screen">
-            <div class="loading-title">Sistem Yükleniyor... 📦</div>
-            <div class="loading-text">
-                Eğer bu yazı 5 saniye içinde kaybolmazsa, tarayıcınız eski hatalı sayfayı hatırlıyor demektir.<br><br>
-                Lütfen klavyenizden <span class="highlight">CTRL + F5</span> tuşlarına aynı anda basarak (veya telefondaysanız gizli sekmeden açarak) sayfayı yenileyin.
-            </div>
-        </div>
-    </div>
+    <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Tasarım Stilleri (En üste alındı)
-        const styles = {
-          root: { display: "flex", height: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden" },
-          sidebar: { width: 220, background: "#0f172a", display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0 },
-          logo: { display: "flex", alignItems: "center", gap: 12, padding: "0 20px 24px", borderBottom: "1px solid #1e293b" },
-          logoIcon: { fontSize: 28 },
-          logoTitle: { fontWeight: 800, fontSize: 16, color: "#f1f5f9", fontFamily: "'DM Serif Display', Georgia, serif" },
-          logoSub: { fontSize: 11, color: "#475569", marginTop: 1 },
-          nav: { padding: "20px 12px", display: "flex", flexDirection: "column", gap: 4 },
-          navBtn: { display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", cursor: "pointer", fontSize: 14, fontWeight: 500, textAlign: "left", transition: "all .15s" },
-          navBtnActive: { background: "#1e293b", color: "#f1f5f9" },
-          sidebarFooter: { marginTop: "auto", padding: "16px 20px", borderTop: "1px solid #1e293b" },
-          main: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
-          header: { background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-          headerTitle: { fontWeight: 800, fontSize: 22, color: "#1e293b", fontFamily: "'DM Serif Display', Georgia, serif" },
-          headerSub: { fontSize: 13, color: "#94a3b8", marginTop: 2 },
-          content: { flex: 1, overflowY: "auto", padding: 28 },
-          statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginBottom: 24 },
-          statCard: { background: "#fff", borderRadius: 14, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 1px 3px #0001" },
-          card: { background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 3px #0001", marginBottom: 20 },
-          cardTitle: { fontWeight: 700, fontSize: 16, color: "#1e293b" },
-          statusCard: { padding: "14px 20px", borderRadius: 12, textAlign: "center", minWidth: 80 },
-          table: { width: "100%", borderCollapse: "collapse", marginTop: 16 },
-          th: { textAlign: "left", padding: "10px 12px", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "2px solid #f1f5f9" },
-          tr: { borderBottom: "1px solid #f8fafc", transition: "background .1s" },
-          td: { padding: "12px 12px", fontSize: 14, color: "#374151" },
-          customerCard: { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 4px #0001" },
-          customerStat: { flex: 1, background: "#f8fafc", borderRadius: 10, padding: "12px 14px", textAlign: "center" },
-          overlay: { position: "fixed", inset: 0, background: "#0009", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
-          modal: { background: "#fff", borderRadius: 20, padding: 32, width: 440, maxWidth: "90vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px #0003" },
-          closeBtn: { background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14, color: "#64748b" },
-          detailRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" },
-          detailLabel: { fontSize: 13, color: "#94a3b8", fontWeight: 500 },
-          detailValue: { fontSize: 15, fontWeight: 600, color: "#1e293b" },
-          input: { padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, minWidth: 240, outline: "none", background: "#f8fafc" },
-          inputFull: { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none", background: "#f8fafc", boxSizing: "border-box" },
-          select: { padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 14, background: "#f8fafc", outline: "none", cursor: "pointer" },
-          btnPrimary: { padding: "10px 20px", borderRadius: 10, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
-          btnSecondary: { padding: "10px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, cursor: "pointer" },
-        };
-
         const initialCustomers = [
-          { id: 1, name: "Ahmet Yılmaz", email: "ahmet@email.com", phone: "0532 111 2233", totalOrders: 3, totalSpent: 1250 },
-          { id: 2, name: "Fatma Demir", email: "fatma@email.com", phone: "0541 444 5566", totalOrders: 7, totalSpent: 4800 },
-          { id: 3, name: "Mehmet Kaya", email: "mehmet@email.com", phone: "0555 777 8899", totalOrders: 2, totalSpent: 680 },
+          { id: 1, name: "Ahmet Yılmaz", email: "ahmet@email.com", phone: "0532 111 2233" },
+          { id: 2, name: "Fatma Demir", email: "fatma@email.com", phone: "0541 444 5566" },
+          { id: 3, name: "Mehmet Kaya", email: "mehmet@email.com", phone: "0555 777 8899" },
         ];
 
         const initialOrders = [
-          { id: 1001, customerId: 1, customerName: "Ahmet Yılmaz", product: "Laptop Stand", amount: 450, status: "teslim_edildi", date: "2026-05-10" },
-          { id: 1002, customerId: 2, customerName: "Fatma Demir", product: "Mekanik Klavye", amount: 1200, status: "kargoda", date: "2026-05-18" },
-          { id: 1003, customerId: 2, customerName: "Fatma Demir", product: "Mouse Pad XL", amount: 350, status: "hazirlaniyor", date: "2026-05-20" },
-          { id: 1004, customerId: 3, customerName: "Mehmet Kaya", product: "USB Hub", amount: 280, status: "beklemede", date: "2026-05-22" },
-          { id: 1005, customerId: 1, customerName: "Ahmet Yılmaz", product: "Webcam HD", amount: 800, status: "hazirlaniyor", date: "2026-05-23" },
+          { id: 1001, customerName: "Ahmet Yılmaz", product: "Laptop Stand", amount: 450, status: "teslim_edildi", date: "2026-05-10" },
+          { id: 1002, customerName: "Fatma Demir", product: "Mekanik Klavye", amount: 1200, status: "kargoda", date: "2026-05-18" },
+          { id: 1003, customerName: "Fatma Demir", product: "Mouse Pad XL", amount: 350, status: "hazirlaniyor", date: "2026-05-20" },
+          { id: 1004, customerName: "Mehmet Kaya", product: "USB Hub", amount: 280, status: "beklemede", date: "2026-05-22" },
+          { id: 1005, customerName: "Ahmet Yılmaz", product: "Webcam HD", amount: 800, status: "hazirlaniyor", date: "2026-05-23" },
         ];
 
         const STATUS_CONFIG = {
-          beklemede:      { label: "Beklemede",      color: "#f59e0b", bg: "#fef3c7", dot: "#f59e0b" },
-          hazirlaniyor:   { label: "Hazırlanıyor",   color: "#3b82f6", bg: "#dbeafe", dot: "#3b82f6" },
-          kargoda:        { label: "Kargoda",        color: "#8b5cf6", bg: "#ede9fe", dot: "#8b5cf6" },
-          teslim_edildi:  { label: "Teslim Edildi",  color: "#10b981", bg: "#d1fae5", dot: "#10b981" },
-          iptal:          { label: "İptal",          color: "#ef4444", bg: "#fee2e2", dot: "#ef4444" },
+          beklemede:      { label: "Beklemede",      color: "#f59e0b", bg: "#fef3c7" },
+          hazirlaniyor:   { label: "Hazırlanıyor",   color: "#3b82f6", bg: "#dbeafe" },
+          kargoda:        { label: "Kargoda",        color: "#8b5cf6", bg: "#ede9fe" },
+          teslim_edildi:  { label: "Teslim Edildi",  color: "#10b981", bg: "#d1fae5" },
+          iptal:          { label: "İptal",          color: "#ef4444", bg: "#fee2e2" },
         };
 
-        // Güvenli LocalStorage Okuyucu (Çökmeleri engeller)
         function getSafeData(key, initialData) {
             try {
                 const data = localStorage.getItem(key);
                 return data ? JSON.parse(data) : initialData;
             } catch (error) {
-                console.error("Veri okuma hatası, sıfırlanıyor...", error);
                 return initialData;
             }
         }
@@ -116,19 +58,18 @@
         function StatusBadge({ status }) {
           const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.beklemede;
           return (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: cfg.color, background: cfg.bg }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: cfg.dot, display: "inline-block" }} />
+            <span style={{ padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, display: "inline-block" }}>
               {cfg.label}
             </span>
           );
         }
 
-        function Avatar({ name, size = 36 }) {
+        function Avatar({ name, size = 32 }) {
           const initials = name ? name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "??";
-          const colors = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#8b5cf6"];
+          const colors = ["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"];
           const color = name ? colors[name.charCodeAt(0) % colors.length] : "#94a3b8";
           return (
-            <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: size * 0.35, flexShrink: 0 }}>
+            <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: size * 0.38, flexShrink: 0 }}>
                 {initials}
             </div>
           );
@@ -136,7 +77,6 @@
 
         function App() {
           const [view, setView] = useState("dashboard");
-          
           const [orders, setOrders] = useState(() => getSafeData("orders", initialOrders));
           const [customers, setCustomers] = useState(() => getSafeData("customers", initialCustomers));
 
@@ -153,6 +93,7 @@
           const [showAddOrder, setShowAddOrder] = useState(false);
           const [showAddCustomer, setShowAddCustomer] = useState(false);
           const [selectedOrder, setSelectedOrder] = useState(null);
+          
           const [newOrder, setNewOrder] = useState({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0] });
           const [newCustomer, setNewCustomer] = useState({ name: "", email: "", phone: "" });
 
@@ -161,20 +102,20 @@
 
           const filteredOrders = orders
             .filter(o => filterStatus === "all" || o.status === filterStatus)
-            .filter(o => o.customerName?.toLowerCase().includes(search.toLowerCase()) || o.product?.toLowerCase().includes(search.toLowerCase()) || String(o.id).includes(search));
+            .filter(o => o.customerName?.toLowerCase().includes(search.toLowerCase()) || o.product?.toLowerCase().includes(search.toLowerCase()));
 
           function addOrder() {
             if (!newOrder.customerName || !newOrder.product || !newOrder.amount) return;
             const id = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1001;
-            setOrders([...orders, { ...newOrder, id, customerId: 0, amount: Number(newOrder.amount) }]);
+            setOrders([...orders, { ...newOrder, id, amount: Number(newOrder.amount) }]);
             setNewOrder({ customerName: "", product: "", amount: "", status: "beklemede", date: new Date().toISOString().split("T")[0] });
             setShowAddOrder(false);
           }
 
           function addCustomer() {
-            if (!newCustomer.name || !newCustomer.email) return;
+            if (!newCustomer.name || !newCustomer.phone) return;
             const id = customers.length > 0 ? Math.max(...customers.map(c => c.id)) + 1 : 1;
-            setCustomers([...customers, { ...newCustomer, id, totalOrders: 0, totalSpent: 0 }]);
+            setCustomers([...customers, { ...newCustomer, id }]);
             setNewCustomer({ name: "", email: "", phone: "" });
             setShowAddCustomer(false);
           }
@@ -188,183 +129,211 @@
 
           return (
             <div style={S.root}>
-              {/* Sidebar */}
-              <aside style={S.sidebar}>
-                <div style={S.logo}>
-                  <div style={S.logoIcon}>📦</div>
-                  <div>
-                    <div style={S.logoTitle}>OrderFlow</div>
-                    <div style={S.logoSub}>Takip Sistemi</div>
-                  </div>
+              {/* Üst Başlık Alanı */}
+              <header style={S.header}>
+                <div style={S.headerLeft}>
+                  <span style={{ fontSize: 22 }}>📦</span>
+                  <span style={S.headerTitle}>OrderFlow</span>
                 </div>
-                <nav style={S.nav}>
-                  {[
-                    { key: "dashboard", icon: "⬛", label: "Genel Bakış" },
-                    { key: "orders", icon: "📋", label: "Siparişler" },
-                    { key: "customers", icon: "👥", label: "Müşteriler" },
-                  ].map(item => (
-                    <button key={item.key} style={{ ...S.navBtn, ...(view === item.key ? S.navBtnActive : {}) }} onClick={() => setView(item.key)}>
-                      <span style={{ fontSize: 18 }}>{item.icon}</span>
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-              </aside>
+                <div>
+                  {view === "orders" && <button style={S.btnPrimarySmall} onClick={() => setShowAddOrder(true)}>+ Ekle</button>}
+                  {view === "customers" && <button style={S.btnPrimarySmall} onClick={() => setShowAddCustomer(true)}>+ Ekle</button>}
+                </div>
+              </header>
 
-              {/* Main */}
+              {/* Ana İçerik Alanı */}
               <main style={S.main}>
-                {/* Header */}
-                <div style={S.header}>
-                  <div>
-                    <div style={S.headerTitle}>
-                      {view === "dashboard" && "Genel Bakış"}
-                      {view === "orders" && "Siparişler"}
-                      {view === "customers" && "Müşteriler"}
+                
+                {/* GENEL BAKIŞ */}
+                {view === "dashboard" && (
+                  <div style={S.content}>
+                    <div style={S.viewTitle}>Genel Bakış</div>
+                    
+                    {/* Özet Kartları */}
+                    <div style={S.statsGrid}>
+                      <div style={S.statCard}>
+                        <div style={{...S.statIcon, background: "#ede9fe", color: "#6366f1"}}>📦</div>
+                        <div>
+                          <div style={S.statValue}>{orders.length}</div>
+                          <div style={S.statLabel}>Toplam Sipariş</div>
+                        </div>
+                      </div>
+                      <div style={S.statCard}>
+                        <div style={{...S.statIcon, background: "#fef3c7", color: "#d97706"}}>🔄</div>
+                        <div>
+                          <div style={S.statValue}>{activeOrders}</div>
+                          <div style={S.statLabel}>Aktif Sipariş</div>
+                        </div>
+                      </div>
+                      <div style={S.statCard}>
+                        <div style={{...S.statIcon, background: "#d1fae5", color: "#059669"}}>💰</div>
+                        <div>
+                          <div style={S.statValue}>₺{totalRevenue.toLocaleString("tr-TR")}</div>
+                          <div style={S.statLabel}>Toplam Gelir</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 10 }}>
-                    {view === "orders" && <button style={S.btnPrimary} onClick={() => setShowAddOrder(true)}>+ Sipariş Ekle</button>}
-                    {view === "customers" && <button style={S.btnPrimary} onClick={() => setShowAddCustomer(true)}>+ Müşteri Ekle</button>}
-                  </div>
-                </div>
 
-                {/* İçerikler */}
-                <div style={S.content}>
-                  {view === "dashboard" && (
-                    <>
-                      <div style={S.statsGrid}>
-                        {[
-                          { label: "Toplam Sipariş", value: orders.length, icon: "📦", color: "#6366f1" },
-                          { label: "Aktif Sipariş", value: activeOrders, icon: "🔄", color: "#f59e0b" },
-                          { label: "Toplam Gelir", value: `₺${totalRevenue.toLocaleString("tr-TR")}`, icon: "💰", color: "#10b981" },
-                          { label: "Müşteri", value: customers.length, icon: "👥", color: "#3b82f6" },
-                        ].map(card => (
-                          <div key={card.label} style={{ ...S.statCard, borderTop: `3px solid ${card.color}` }}>
-                            <div style={{ fontSize: 28 }}>{card.icon}</div>
-                            <div>
-                              <div style={{ fontSize: 26, fontWeight: 800, color: "#1e293b", fontFamily: "'DM Serif Display', Georgia, serif" }}>{card.value}</div>
-                              <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{card.label}</div>
+                    {/* Son Siparişler Listesi */}
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Son Siparişler</div>
+                      <div style={{ marginTop: 12 }}>
+                        {orders.slice(-4).reverse().map(o => (
+                          <div key={o.id} style={S.mobileListItem} onClick={() => setSelectedOrder(o)}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <Avatar name={o.customerName} size={34} />
+                              <div>
+                                <div style={S.itemTitle}>{o.customerName}</div>
+                                <div style={S.itemSub}>{o.product} · <b>₺{o.amount}</b></div>
+                              </div>
                             </div>
+                            <StatusBadge status={o.status} />
                           </div>
                         ))}
                       </div>
-                      <div style={S.card}>
-                        <div style={S.cardTitle}>Son Siparişler</div>
-                        <table style={S.table}>
-                          <thead>
-                            <tr>{["#", "Müşteri", "Ürün", "Tutar", "Durum"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
-                          </thead>
-                          <tbody>
-                            {orders.slice(-5).reverse().map(o => (
-                              <tr key={o.id} style={S.tr}>
-                                <td style={{ ...S.td, fontWeight: 700, color: "#6366f1" }}>#{o.id}</td>
-                                <td style={S.td}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><Avatar name={o.customerName} size={28} /> {o.customerName}</div></td>
-                                <td style={S.td}>{o.product}</td>
-                                <td style={{ ...S.td, fontWeight: 700 }}>₺{Number(o.amount).toLocaleString("tr-TR")}</td>
-                                <td style={S.td}><StatusBadge status={o.status} /></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
+                    </div>
+                  </div>
+                )}
 
-                  {view === "orders" && (
-                    <>
-                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-                        <input style={S.input} placeholder="Ara..." value={search} onChange={e => setSearch(e.target.value)} />
-                        <select style={S.select} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                          <option value="all">Tüm Durumlar</option>
-                          {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                        </select>
-                      </div>
-                      <div style={S.card}>
-                        <table style={S.table}>
-                          <thead><tr>{["#", "Müşteri", "Ürün", "Tutar", "Durum", "İşlem"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
-                          <tbody>
-                            {filteredOrders.map(o => (
-                              <tr key={o.id} style={{ ...S.tr, cursor: "pointer" }} onClick={() => setSelectedOrder(o)}>
-                                <td style={{ ...S.td, fontWeight: 700, color: "#6366f1" }}>#{o.id}</td>
-                                <td style={S.td}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><Avatar name={o.customerName} size={30} /> {o.customerName}</div></td>
-                                <td style={S.td}>{o.product}</td>
-                                <td style={{ ...S.td, fontWeight: 700 }}>₺{Number(o.amount).toLocaleString("tr-TR")}</td>
-                                <td style={S.td}><StatusBadge status={o.status} /></td>
-                                <td style={S.td} onClick={e => e.stopPropagation()}>
-                                  <select style={{ ...S.select, fontSize: 12, padding: "4px 8px" }} value={o.status} onChange={e => updateStatus(o.id, e.target.value)}>
-                                    {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                                  </select>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
+                {/* SİPARİŞLER LİSTESİ */}
+                {view === "orders" && (
+                  <div style={S.content}>
+                    <div style={S.viewTitle}>Siparişler</div>
+                    
+                    {/* Arama Filtreleri */}
+                    <div style={S.filterRow}>
+                      <input style={S.input} placeholder="Müşteri veya ürün ara..." value={search} onChange={e => setSearch(e.target.value)} />
+                      <select style={S.select} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                        <option value="all">Tümü</option>
+                        {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      </select>
+                    </div>
 
-                  {view === "customers" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                    {/* Sipariş Elemanları */}
+                    <div style={{ paddingBottom: 20 }}>
+                      {filteredOrders.reverse().map(o => (
+                        <div key={o.id} style={S.orderCard} onClick={() => setSelectedOrder(o)}>
+                          <div style={S.orderCardTop}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <Avatar name={o.customerName} size={36} />
+                              <div>
+                                <div style={S.itemTitle}>{o.customerName}</div>
+                                <div style={S.itemSub}>#{o.id} · {o.date}</div>
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 15 }}>₺{o.amount}</div>
+                          </div>
+                          <div style={S.orderCardBottom}>
+                            <span style={{ fontSize: 13, color: "#475569" }}>{o.product}</span>
+                            <StatusBadge status={o.status} />
+                          </div>
+                        </div>
+                      ))}
+                      {filteredOrders.length === 0 && <div style={S.emptyState}>Sipariş bulunamadı.</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* MÜŞTERİLER LİSTESİ */}
+                {view === "customers" && (
+                  <div style={S.content}>
+                    <div style={S.viewTitle}>Müşteriler</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 20 }}>
                       {customers.map(c => (
                         <div key={c.id} style={S.customerCard}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-                            <Avatar name={c.name} size={48} />
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <Avatar name={c.name} size={40} />
                             <div>
-                              <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>{c.name}</div>
-                              <div style={{ fontSize: 13, color: "#64748b" }}>{c.email}</div>
+                              <div style={{ fontWeight: 600, fontSize: 15, color: "#1e293b" }}>{c.name}</div>
+                              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>📞 {c.phone}</div>
+                              {c.email && <div style={{ fontSize: 12, color: "#64748b" }}>✉️ {c.email}</div>}
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
               </main>
 
-              {/* Modallar */}
+              {/* MOBİL ALT MENÜ (TAB BAR) - İŞTE ÇÖZÜMÜMÜZ! */}
+              <nav style={S.tabBar}>
+                {[
+                  { key: "dashboard", icon: "📊", label: "Özet" },
+                  { key: "orders", icon: "📋", label: "Siparişler" },
+                  { key: "customers", icon: "👥", label: "Müşteriler" },
+                ].map(item => (
+                  <button key={item.key} style={{ ...S.tabBtn, ...(view === item.key ? S.tabBtnActive : {}) }} onClick={() => setView(item.key)}>
+                    <span style={{ fontSize: 20, marginBottom: 2 }}>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+
+              {/* SİPARİŞ DETAY MODALI */}
               {selectedOrder && (
                 <div style={S.overlay} onClick={() => setSelectedOrder(null)}>
                   <div style={S.modal} onClick={e => e.stopPropagation()}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-                      <div style={{ fontWeight: 800, fontSize: 22 }}>Sipariş #{selectedOrder.id}</div>
+                    <div style={S.modalHeader}>
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>Sipariş Detayı</div>
                       <button style={S.closeBtn} onClick={() => setSelectedOrder(null)}>✕</button>
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                          <button key={k}
-                            style={{ padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: selectedOrder.status === k ? v.color : v.bg, color: selectedOrder.status === k ? "#fff" : v.color }}
-                            onClick={() => updateStatus(selectedOrder.id, k)}
-                          >{v.label}</button>
-                        ))}
+                    <div style={S.modalBody}>
+                      <div style={S.detailRow}><span>Müşteri:</span> <b>{selectedOrder.customerName}</b></div>
+                      <div style={S.detailRow}   ><span>Ürün:</span> <span>{selectedOrder.product}</span></div>
+                      <div style={S.detailRow}   ><span>Tutar:</span> <b style={{color: "#10b981"}}>₺{selectedOrder.amount}</b></div>
+                      <div style={S.detailRow}   ><span>Tarih:</span> <span>{selectedOrder.date}</span></div>
+                      <div style={{...S.detailRow, border: "none"}}><span>Mevcut Durum:</span> <StatusBadge status={selectedOrder.status} /></div>
+                      
+                      <div style={{ marginTop: 15, paddingTop: 15, borderTop: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8 }}>DURUMU GÜNCELLE</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                            <button key={k}
+                              style={{ padding: "8px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", background: selectedOrder.status === k ? v.color : "#f1f5f9", color: selectedOrder.status === k ? "#fff" : "#475569" }}
+                              onClick={() => updateStatus(selectedOrder.id, k)}
+                            >{v.label}</button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* YENİ SİPARİŞ EKLEME MODALI */}
               {showAddOrder && (
                 <div style={S.overlay} onClick={() => setShowAddOrder(false)}>
                   <div style={S.modal} onClick={e => e.stopPropagation()}>
-                    <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 20 }}>Yeni Sipariş</div>
-                    <input style={{ ...S.inputFull, marginBottom: 10 }} placeholder="Müşteri Adı" value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} />
-                    <input style={{ ...S.inputFull, marginBottom: 10 }} placeholder="Ürün" value={newOrder.product} onChange={e => setNewOrder({...newOrder, product: e.target.value})} />
-                    <input style={{ ...S.inputFull, marginBottom: 10 }} type="number" placeholder="Tutar (₺)" value={newOrder.amount} onChange={e => setNewOrder({...newOrder, amount: e.target.value})} />
-                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                      <button style={S.btnPrimary} onClick={addOrder}>Ekle</button>
-                      <button style={S.btnSecondary} onClick={() => setShowAddOrder(false)}>İptal</button>
+                    <div style={S.modalHeader}>
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>Yeni Sipariş Ekle</div>
+                      <button style={S.closeBtn} onClick={() => setShowAddOrder(false)}>✕</button>
+                    </div>
+                    <div style={S.modalBody}>
+                      <input style={S.inputFull} placeholder="Müşteri Adı Soyadı" value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} />
+                      <input style={S.inputFull} placeholder="Satılan Ürün" value={newOrder.product} onChange={e => setNewOrder({...newOrder, product: e.target.value})} />
+                      <input style={S.inputFull} type="number" placeholder="Tutar (₺)" value={newOrder.amount} onChange={e => setNewOrder({...newOrder, amount: e.target.value})} />
+                      <input style={S.inputFull} type="date" value={newOrder.date} onChange={e => setNewOrder({...newOrder, date: e.target.value})} />
+                      <button style={{...S.btnPrimary, width: "100%", marginTop: 10}} onClick={addOrder}>Siparişi Kaydet</button>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* YENİ MÜŞTERİ EKLEME MODALI */}
               {showAddCustomer && (
                 <div style={S.overlay} onClick={() => setShowAddCustomer(false)}>
                   <div style={S.modal} onClick={e => e.stopPropagation()}>
-                    <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 20 }}>Yeni Müşteri</div>
-                    <input style={{ ...S.inputFull, marginBottom: 10 }} placeholder="Ad Soyad" value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} />
-                    <input style={{ ...S.inputFull, marginBottom: 10 }} placeholder="E-posta" value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} />
-                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                      <button style={S.btnPrimary} onClick={addCustomer}>Ekle</button>
-                      <button style={S.btnSecondary} onClick={() => setShowAddCustomer(false)}>İptal</button>
+                    <div style={S.modalHeader}>
+                      <div style={{ fontWeight: 800, fontSize: 18 }}>Yeni Müşteri Ekle</div>
+                      <button style={S.closeBtn} onClick={() => setShowAddCustomer(false)}>✕</button>
+                    </div>
+                    <div style={S.modalBody}>
+                      <input style={S.inputFull} placeholder="Müşteri Adı Soyadı" value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} />
+                      <input style={S.inputFull} placeholder="Telefon Numarası" value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} />
+                      <input style={S.inputFull} placeholder="E-posta Adresi (Opsiyonel)" value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} />
+                      <button style={{...S.btnPrimary, width: "100%", marginTop: 10}} onClick={addCustomer}>Müşteriyi Kaydet</button>
                     </div>
                   </div>
                 </div>
@@ -372,6 +341,46 @@
             </div>
           );
         }
+
+        const styles = {
+          root: { display: "flex", flexDirection: "column", height: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif", overflow: "hidden" },
+          header: { background: "#0f172a", color: "#fff", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShaddow: "0 2px 4px rgba(0,0,0,0.1)" },
+          headerLeft: { display: "flex", alignItems: "center", gap: 8 },
+          headerTitle: { fontWeight: 700, fontSize: 16, fontFamily: "'DM Serif Display', Georgia, serif", letterSpacing: 0.5 },
+          main: { flex: 1, overflowY: "auto", paddingBottom: 70 }, // Alt menü boşluğu
+          content: { padding: 16 },
+          viewTitle: { fontSıze: 20, fontWeight: 800, color: "#1e293b", marginBottom: 14, fontFamily: "'DM Serif Display', Georgia, serif" },
+          statsGrid: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 },
+          statCard: { background: "#fff", borderRadius: 12, padding: 12, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
+          statIcon: { width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: "bold" },
+          statValue: { fontSize: 18, fontWeight: 700, color: "#1e293b" },
+          statLabel: { fontSize: 11, color: "#64748b" },
+          card: { background: "#fff", borderRadius: 12, padding: 14, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
+          cardTitle: { fontWeight: 700, fontSize: 14, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 8 },
+          mobileListItem: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f8fafc" },
+          itemTitle: { fontWeight: 600, fontSize: 13, color: "#1e293b" },
+          itemSub: { fontSize: 11, color: "#64748b", marginTop: 2 },
+          filterRow: { display: "flex", gap: 8, marginBottom: 12 },
+          input: { flex: 1, padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none" },
+          select: { padding: "8px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, background: "#fff" },
+          orderCard: { background: "#fff", borderRadius: 12, padding: 12, marginBottom: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
+          orderCardTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
+          orderCardBottom: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTop: "1px solid #f8fafc" },
+          customerCard: { background: "#fff", borderRadius: 12, padding: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" },
+          emptyState: { textAlign: "center", padding: 30, color: "#94a3b8", fontSize: 13 },
+          tabBar: { position: "fixed", bottom: 0, left: 0, right: 0, height: 56, background: "#fff", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-around", alignItems: "center", zIndex: 100 },
+          tabBtn: { display: "flex", flexDirection: "column", alignItems: "center", background: "transparent", border: "none", color: "#94a3b8", fontSize: 10, fontWeight: 500, cursor: "pointer" },
+          tabBtnActive: { color: "#6366f1", fontWeight: 700 },
+          btnPrimary: { padding: "10px 16px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 13 },
+          btnPrimarySmall: { padding: "6px 12px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", fontWeight: 700, fontSize: 12 },
+          overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 },
+          modal: { background: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, width: "100%", boxSizing: "border-box", animation: "slideUp 0.3s ease-out" },
+          modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
+          closeBtn: { background: "#f1f5f9", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", color: "#64748b" },
+          modalBody: { display: "flex", flexDirection: "column", gap: 10 },
+          detailRow: { display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f1f5f9", fontSize: 13 },
+          inputFull: { width: "100%", padding: "10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, boxSizing: "border-box", outline: "none" }
+        };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
